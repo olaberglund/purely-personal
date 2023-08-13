@@ -8,13 +8,19 @@
 
 module Main where
 
+import Control.Monad.IO.Class
+import DBing (connInfo, recipeSelect)
 import Data.Function ((&))
 import Data.Text (Text, pack)
+import qualified Database.PostgreSQL.Simple as PG
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Lucid
 import Network.Wai.Handler.Warp (run)
+import Opaleye (runSelectI)
 import Servant
 import Servant.HTML.Lucid (HTML)
+
+-- Server
 
 type RecipesHref = "about"
 
@@ -25,38 +31,24 @@ type BlogAPI =
     :<|> RecipesHref :> Get '[HTML] RecipesPage
     :<|> StylesHref :> Raw
 
-data RecipesPage = RecipesPage
-
-instance ToHtml RecipesPage where
-  toHtml RecipesPage =
-    doc_ $ do
-      h1_ "Recipes"
-      p_ "This is my about page!"
-
-  toHtmlRaw = toHtml
-
-data HomePage = HomePage
-
-instance ToHtml HomePage where
-  toHtml HomePage =
-    doc_ $ do
-      h1_ "Hello, there!"
-      p_ "This is my personal blog!"
-      button_ "YO!"
-
-  toHtmlRaw = toHtml
-
-mkServer :: Server BlogAPI
-mkServer =
+mkServer :: PG.Connection -> Server BlogAPI
+mkServer conn =
   return HomePage
-    :<|> return RecipesPage
+    :<|> serveRecipes
     :<|> serveDirectoryWebApp "static"
+  where
+    serveRecipes :: Handler RecipesPage
+    serveRecipes = do
+      rs <- liftIO (runSelectI conn recipeSelect)
+      return (RecipesPage rs)
 
-app :: Application
-app = mkServer & serve (Proxy :: Proxy BlogAPI)
+app :: PG.Connection -> Application
+app = serve (Proxy :: Proxy BlogAPI) . mkServer
 
 main :: IO ()
-main = run 8080 app
+main = PG.connect connInfo >>= run 8080 . app
+
+-- HTML
 
 doc_ :: (Monad m) => HtmlT m () -> HtmlT m ()
 doc_ b =
@@ -73,6 +65,33 @@ navbar_ :: (Monad m) => HtmlT m ()
 navbar_ = nav_ $ do
   a_ [href_ "/"] "Home"
   a_ [href_ $ urlpath @RecipesHref] "Recipes"
+
+newtype RecipesPage = RecipesPage [(Int, Text, Text)]
+
+instance ToHtml RecipesPage where
+  toHtml (RecipesPage rs) =
+    doc_ $ do
+      h1_ "Recipes"
+      hr_ []
+      ul_ $ do
+        mapM_
+          ( \(i, n, d) -> li_ $ do
+              h2_ (toHtml n)
+              ul_ (li_ (toHtml d))
+          )
+          rs
+
+  toHtmlRaw = toHtml
+
+data HomePage = HomePage
+
+instance ToHtml HomePage where
+  toHtml HomePage =
+    doc_ $ do
+      h1_ "Hello, there!"
+      p_ "En blogg!"
+
+  toHtmlRaw = toHtml
 
 urlpath :: forall s. (KnownSymbol s) => Text
 urlpath = pack $ symbolVal (Proxy :: Proxy s)

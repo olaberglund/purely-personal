@@ -25,8 +25,11 @@ testInsert =
       iOnConflict = Nothing
     }
 
+recipeSelect :: Select (Field SqlInt4, Field SqlText, Field SqlText)
+recipeSelect = selectTable recipeTable
+
 test :: IO ()
 test = do
   conn <- PG.connect connInfo
-  colsAffected <- runInsert conn testInsert
-  print colsAffected
+  rows <- runSelectI conn recipeSelect
+  print rows
