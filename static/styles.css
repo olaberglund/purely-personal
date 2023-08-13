@@ -1,0 +1,44 @@
+:root {
+    --primary: rgb(0, 173, 181);
+    --secondary: rgb(238, 238, 238);
+    --primary-text: rgb(238, 238, 238);
+    --secondary-text: rgb(0,0,0);
+    --background: rgb(34, 40, 49);
+    --background-lighter: rgb(57, 62, 70);
+    --page-padding: 20%;
+}
+
+body {
+    margin: 0;
+    background-color: var(--background);
+    color: var(--primary-text);
+    margin: 40px auto;
+    max-width: 650px;
+    line-height: 1.6;
+    font-size: 18px;
+}
+
+h1, h2, h3 {
+    line-height: 1.2;
+}
+
+nav {
+    display: flex;
+    width: 100%;
+    gap: 12px;
+    border-bottom: 1px solid var(--secondary);
+}
+
+a {
+    text-decoration: none;
+    color: var(--primary-text);
+}
+
+button {
+    background-color: var(--primary);
+    color: var(--primary-text);
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+}
