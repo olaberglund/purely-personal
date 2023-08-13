@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -9,38 +10,57 @@
 module Main where
 
 import Control.Monad.IO.Class
-import DBing (connInfo, recipeSelect)
+import DBing (connInfo, insertRecipe, recipeSelect)
 import Data.Function ((&))
 import Data.Text (Text, pack)
 import qualified Database.PostgreSQL.Simple as PG
+import GHC.Generics (Generic)
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Lucid
 import Network.Wai.Handler.Warp (run)
-import Opaleye (runSelectI)
+import Opaleye (runInsert, runInsert_, runSelectI)
 import Servant
 import Servant.HTML.Lucid (HTML)
+import Web.FormUrlEncoded (FromForm)
 
 -- Server
 
-type RecipesHref = "about"
+type RecipesHref = "recipes"
 
 type StylesHref = "styles"
+
+type RecipesInsertionHref = "insert"
+
+data RecipeForm = RecipeForm
+  { name :: Text,
+    description :: Text
+  }
+  deriving (Generic)
+
+instance FromForm RecipeForm
 
 type BlogAPI =
   Get '[HTML] HomePage
     :<|> RecipesHref :> Get '[HTML] RecipesPage
+    :<|> RecipesInsertionHref :> ReqBody '[FormUrlEncoded] RecipeForm :> Post '[HTML] RecipesPage
     :<|> StylesHref :> Raw
 
 mkServer :: PG.Connection -> Server BlogAPI
 mkServer conn =
   return HomePage
-    :<|> serveRecipes
+    :<|> recipes
+    :<|> newRecipe
     :<|> serveDirectoryWebApp "static"
   where
-    serveRecipes :: Handler RecipesPage
-    serveRecipes = do
+    recipes :: Handler RecipesPage
+    recipes = do
       rs <- liftIO (runSelectI conn recipeSelect)
       return (RecipesPage rs)
+
+    newRecipe :: RecipeForm -> Handler RecipesPage
+    newRecipe (RecipeForm n d) = do
+      liftIO (runInsert conn (insertRecipe n d))
+      recipes
 
 app :: PG.Connection -> Application
 app = serve (Proxy :: Proxy BlogAPI) . mkServer
@@ -49,7 +69,6 @@ main :: IO ()
 main = PG.connect connInfo >>= run 8080 . app
 
 -- HTML
-
 doc_ :: (Monad m) => HtmlT m () -> HtmlT m ()
 doc_ b =
   doctypehtml_ $
@@ -73,9 +92,18 @@ instance ToHtml RecipesPage where
     doc_ $ do
       h1_ "Recipes"
       hr_ []
+      form_ [action_ (urlpath @RecipesInsertionHref), method_ "post"] $
+        fieldset_ $ do
+          legend_ "Add recipe"
+          label_ [for_ "name"] "Name:"
+          input_ [type_ "text", name_ "name"]
+          label_ [for_ "description"] "Description:"
+          input_ [type_ "text", name_ "description"]
+          br_ []
+          input_ [type_ "submit", value_ "Add"]
       ul_ $ do
         mapM_
-          ( \(i, n, d) -> li_ $ do
+          ( \(_, n, d) -> li_ $ do
               h2_ (toHtml n)
               ul_ (li_ (toHtml d))
           )
@@ -94,4 +122,4 @@ instance ToHtml HomePage where
   toHtmlRaw = toHtml
 
 urlpath :: forall s. (KnownSymbol s) => Text
-urlpath = pack $ symbolVal (Proxy :: Proxy s)
+urlpath = pack $ "/" <> symbolVal (Proxy :: Proxy s)

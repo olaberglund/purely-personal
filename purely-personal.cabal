@@ -39,5 +39,6 @@ executable purely-personal
                     , opaleye
                     , postgresql-simple
                     , product-profunctors
+                    , http-api-data
     hs-source-dirs:   app
     default-language: Haskell2010
