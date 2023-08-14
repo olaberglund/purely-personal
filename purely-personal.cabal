@@ -40,5 +40,6 @@ executable purely-personal
                     , postgresql-simple
                     , product-profunctors
                     , http-api-data
+                    , http-types
     hs-source-dirs:   app
     default-language: Haskell2010

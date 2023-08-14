@@ -11,12 +11,13 @@ module Main where
 
 import Control.Monad.IO.Class
 import DBing (connInfo, insertRecipe, recipeSelect)
-import Data.Function ((&))
 import Data.Text (Text, pack)
+import Data.Text.Encoding (encodeUtf8)
 import qualified Database.PostgreSQL.Simple as PG
 import GHC.Generics (Generic)
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Lucid
+import Network.HTTP.Types (hLocation)
 import Network.Wai.Handler.Warp (run)
 import Opaleye (runInsert, runInsert_, runSelectI)
 import Servant
@@ -60,7 +61,7 @@ mkServer conn =
     newRecipe :: RecipeForm -> Handler RecipesPage
     newRecipe (RecipeForm n d) = do
       liftIO (runInsert conn (insertRecipe n d))
-      recipes
+      throwError $ err303 {errHeaders = [(hLocation, "http://localhost:8080/" <> encodeUtf8 (urlpath @RecipesHref))]}
 
 app :: PG.Connection -> Application
 app = serve (Proxy :: Proxy BlogAPI) . mkServer
@@ -91,7 +92,6 @@ instance ToHtml RecipesPage where
   toHtml (RecipesPage rs) =
     doc_ $ do
       h1_ "Recipes"
-      hr_ []
       form_ [action_ (urlpath @RecipesInsertionHref), method_ "post"] $
         fieldset_ $ do
           legend_ "Add recipe"
