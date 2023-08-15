@@ -205,6 +205,7 @@ doc_ b =
     html_ $ do
       head_ $ do
         title_ "Amalgam"
+        meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1.0"]
         link_ [rel_ "stylesheet", href_ "styles/styles.css"]
       body_ $ do
         navbar_
