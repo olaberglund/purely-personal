@@ -25,7 +25,7 @@ executable purely-personal
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    other-modules: DBing
+    other-modules: DBing, Poker, Amazement
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -41,5 +41,16 @@ executable purely-personal
                     , product-profunctors
                     , http-api-data
                     , http-types
+                    , random-shuffle
+                    , random
+                    , multiset
+                    , split
+                    , parallel
+                    , deepseq
+                    , containers
+                    , algebraic-graphs
+
     hs-source-dirs:   app
     default-language: Haskell2010
+    ghc-options: -O2 -threaded -rtsopts "-with-rtsopts=-N"
+
